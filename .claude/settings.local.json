@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(java *)",
+      "Bash(mvn *)",
+      "Bash(jar tf *)",
+      "Bash(mkdir *)",
+      "Bash(jar xf *)",
+      "Bash(javap *)"
+    ]
+  }
+}
