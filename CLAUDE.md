@@ -10,6 +10,10 @@
 - No Lombok - write explicit constructors and accessors
 - Package executable application into fat jar
 
+### Pom.xml
+- Format each `<dependency>...</dependency>` on a single line, do not split into multiple lines
+- For `<plugin>...</plugin>` sections: place `<groupId>`, `<artifactId>` and `<version>` nodes on a single line
+
 ## Build & Run
 - `mvn clean` to prepare clean build
 - `mvn package` to compile, test and package jars
