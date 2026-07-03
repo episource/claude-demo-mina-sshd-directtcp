@@ -9,6 +9,7 @@
 ## Conventions
 - No Lombok - write explicit constructors and accessors
 - Package executable application into fat jar
+- Prefer maven-assembly-plugin over maven-shade-plugin
 
 ### Pom.xml
 - Format each `<dependency>...</dependency>` on a single line, do not split into multiple lines
@@ -23,3 +24,5 @@
 - Do not suggest Kotlin alternatives
 - Do not suggest other programming languages
 - Do not generate code that targets Java 22+
+- Do not create git commits
+- Do not perform any git commands writing to the git database. Only read!
