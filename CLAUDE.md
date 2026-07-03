@@ -10,6 +10,7 @@
 - No Lombok - write explicit constructors and accessors
 - Package executable application into fat jar
 - Prefer maven-assembly-plugin over maven-shade-plugin
+- For maven-assembly-plugin: Use `appendAssemblyId=true`
 
 ### Pom.xml
 - Format each `<dependency>...</dependency>` on a single line, do not split into multiple lines
