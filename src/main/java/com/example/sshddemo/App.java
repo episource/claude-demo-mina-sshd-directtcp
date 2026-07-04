@@ -62,7 +62,7 @@ public final class App {
         }
     }
 
-    private static KeyPair loadClientKeyPair() throws IOException, GeneralSecurityException {
+    static KeyPair loadClientKeyPair() throws IOException, GeneralSecurityException {
         try (InputStream keyStream = App.class.getResourceAsStream(CLIENT_KEY_RESOURCE)) {
             Collection<KeyPair> keyPairs = PEMResourceParserUtils.PROXY.loadKeyPairs(
                     null, NamedResource.ofName(CLIENT_KEY_RESOURCE), FilePasswordProvider.EMPTY, keyStream);

@@ -95,7 +95,6 @@ These values are demo-only and are not intended for production deployment.
   store, revocation, or per-user key management).
 - No support for multiple concurrent client sessions.
 - No persistence beyond the generated host key file.
-- No automated test suite currently exists in this repository.
 
 ## 7. Build & Run
 
@@ -104,6 +103,14 @@ Per the project's build conventions (see `CLAUDE.md`):
 - `mvn clean` — prepare a clean build.
 - `mvn package` — compile, test, and package the fat jar.
 - `mvn test` — run tests only.
+
+### 7.1 Automated tests
+
+`PublicKeyAuthenticationTest` (JUnit 5) starts a real `DemoServer` on an ephemeral port and
+verifies the public-key authenticator behaves as required:
+- the hardcoded demo key pair (`App.loadClientKeyPair()`) is accepted;
+- an unrelated, freshly generated RSA key pair is rejected;
+- password authentication is rejected (no `PasswordAuthenticator` is registered at all).
 
 Run the packaged demo:
 
