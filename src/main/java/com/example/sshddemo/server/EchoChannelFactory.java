@@ -1,7 +1,6 @@
 package com.example.sshddemo.server;
 
 import java.io.IOException;
-import java.io.PrintStream;
 
 import org.apache.sshd.common.channel.Channel;
 import org.apache.sshd.common.channel.ChannelFactory;
@@ -17,12 +16,6 @@ public final class EchoChannelFactory implements ChannelFactory {
     /** The channel type name used in the SSH {@code SSH_MSG_CHANNEL_OPEN} request. */
     public static final String DIRECT_TCPIP_CHANNEL_TYPE = "direct-tcpip";
 
-    private final PrintStream sink;
-
-    public EchoChannelFactory(PrintStream sink) {
-        this.sink = sink;
-    }
-
     @Override
     public String getName() {
         return DIRECT_TCPIP_CHANNEL_TYPE;
@@ -30,6 +23,6 @@ public final class EchoChannelFactory implements ChannelFactory {
 
     @Override
     public Channel createChannel(Session session) throws IOException {
-        return new EchoServerChannel(sink);
+        return new EchoServerChannel();
     }
 }

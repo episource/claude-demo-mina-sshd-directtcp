@@ -1,7 +1,6 @@
 package com.example.sshddemo.server;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.security.PublicKey;
 import java.util.Arrays;
@@ -27,8 +26,7 @@ public final class DemoServer implements AutoCloseable {
         this.sshServer = sshServer;
     }
 
-    public static DemoServer start(int port, Path hostKeyPath, PrintStream captureSink, PublicKey authorizedClientKey)
-            throws IOException {
+    public static DemoServer start(int port, Path hostKeyPath, PublicKey authorizedClientKey) throws IOException {
         SshServer server = SshServer.setUpDefaultServer();
         server.setPort(port);
 
@@ -45,7 +43,7 @@ public final class DemoServer implements AutoCloseable {
         server.setForwardingFilter(RejectAllForwardingFilter.INSTANCE);
         server.setChannelFactories(Arrays.asList(
                 ChannelSessionFactory.INSTANCE,
-                new EchoChannelFactory(captureSink)));
+                new EchoChannelFactory()));
 
         server.start();
         return new DemoServer(server);

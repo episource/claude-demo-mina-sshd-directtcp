@@ -1,7 +1,6 @@
 package com.example.sshddemo.server;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
@@ -22,13 +21,10 @@ import org.apache.sshd.server.channel.AbstractServerChannel;
  */
 public final class EchoServerChannel extends AbstractServerChannel {
 
-    private final PrintStream sink;
-
     private ChannelAsyncOutputStream asyncOut;
 
-    public EchoServerChannel(PrintStream sink) {
+    public EchoServerChannel() {
         super("", Collections.emptyList(), null);
-        this.sink = sink;
     }
 
     @Override
@@ -41,7 +37,7 @@ public final class EchoServerChannel extends AbstractServerChannel {
         String originatorIpAddress = buffer.getString();
         int originatorPort = buffer.getInt();
 
-        sink.printf(
+        System.out.printf(
                 "[server] direct-tcpip channel opened (requested target=%s:%d, originator=%s:%d) - echoing back to client, no forwarding%n",
                 hostToConnect, portToConnect, originatorIpAddress, originatorPort);
 

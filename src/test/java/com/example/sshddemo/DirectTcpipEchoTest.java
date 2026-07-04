@@ -41,7 +41,7 @@ class DirectTcpipEchoTest {
         PipedOutputStream consoleInput = new PipedOutputStream();
         PipedInputStream in = new PipedInputStream(consoleInput);
 
-        try (DemoServer server = DemoServer.start(0, tempDir.resolve("hostkey.ser"), System.out, clientKeyPair.getPublic());
+        try (DemoServer server = DemoServer.start(0, tempDir.resolve("hostkey.ser"), clientKeyPair.getPublic());
                 SshClient client = SshClient.setUpDefaultClient()) {
             client.start();
 

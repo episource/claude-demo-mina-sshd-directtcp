@@ -53,7 +53,7 @@ public final class App {
         KeyPair clientKeyPair = loadClientKeyPair();
 
         System.out.println("Starting embedded SSH server on port " + SERVER_PORT + " ...");
-        try (DemoServer server = DemoServer.start(SERVER_PORT, hostKeyPath, System.out, clientKeyPair.getPublic())) {
+        try (DemoServer server = DemoServer.start(SERVER_PORT, hostKeyPath, clientKeyPair.getPublic())) {
             System.out.println("Server listening on port " + server.getPort());
 
             try (SshClient client = SshClient.setUpDefaultClient()) {

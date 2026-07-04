@@ -82,7 +82,7 @@ class PublicKeyAuthenticationTest {
     }
 
     private static DemoServer startServer(Path tempDir, KeyPair authorizedKeyPair) throws Exception {
-        return DemoServer.start(0, tempDir.resolve("hostkey.ser"), System.out, authorizedKeyPair.getPublic());
+        return DemoServer.start(0, tempDir.resolve("hostkey.ser"), authorizedKeyPair.getPublic());
     }
 
     private static ClientSession connect(SshClient client, int port) throws Exception {
