@@ -1,14 +1,17 @@
 package com.example.sshddemo.server;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 
 import org.apache.sshd.client.future.OpenFuture;
 import org.apache.sshd.common.Closeable;
 import org.apache.sshd.common.SshConstants;
 import org.apache.sshd.common.channel.ChannelAsyncOutputStream;
 import org.apache.sshd.common.channel.LocalWindow;
+import org.apache.sshd.common.io.IoWriteFuture;
 import org.apache.sshd.common.util.buffer.Buffer;
 import org.apache.sshd.common.util.buffer.ByteArrayBuffer;
 import org.apache.sshd.server.channel.AbstractServerChannel;
@@ -16,12 +19,30 @@ import org.apache.sshd.server.channel.AbstractServerChannel;
 /**
  * Server-side {@code direct-tcpip} channel that never opens an outbound socket. The host/port/originator fields
  * carried by the {@code SSH_MSG_CHANNEL_OPEN} request are consumed (so the buffer stays well-formed) but otherwise
- * ignored - instead of forwarding anywhere, every chunk of channel data received from the peer is echoed straight
- * back to it with a literal {@code !} prepended.
+ * ignored - instead of forwarding anywhere, every line of channel data received from the peer is echoed straight
+ * back to it with a literal {@code !} prepended to the start of each line, regardless of how the underlying SSH
+ * transport chunks the byte stream across {@code doWriteData} calls.
  */
 public final class EchoServerChannel extends AbstractServerChannel {
 
     private ChannelAsyncOutputStream asyncOut;
+
+    // Tracks whether the next byte to be written begins a new line, so the '!' marker is inserted once per line
+    // rather than once per received chunk - a line may span many doWriteData() calls (the SSH transport chunks
+    // data at packet-size/window boundaries with no regard for line content), so this state must persist across
+    // calls. Keyed off the '\n' byte alone (0x0A): this covers both Unix ("\n") and Windows ("\r\n") line endings
+    // without special-casing, including a "\r\n" split across two chunks, since only the '\n' half triggers the
+    // next byte to start a new line.
+    private boolean atLineStart = true;
+
+    // ChannelAsyncOutputStream.writeBuffer() forbids overlapping writes - it throws WritePendingException if called
+    // again before the previous write's future has completed. doWriteData() can be invoked repeatedly by the
+    // session's reader thread faster than a large echo finishes writing (e.g. a multi-megabyte line split across
+    // many SSH_MSG_CHANNEL_DATA chunks), so pending echoes are queued here and written out strictly one at a time,
+    // advancing to the next only once the previous write's future completes (via its listener) - this preserves
+    // both the write-serialization contract and the received data's ordering (and thus the per-line '!' state).
+    private final Deque<ByteArrayBuffer> pendingEchoes = new ArrayDeque<>();
+    private boolean echoWriteInProgress;
 
     public EchoServerChannel() {
         super("", Collections.emptyList(), null);
@@ -49,14 +70,56 @@ public final class EchoServerChannel extends AbstractServerChannel {
 
     @Override
     protected void doWriteData(byte[] data, int off, long len) throws IOException {
-        String received = new String(data, off, (int) len, StandardCharsets.UTF_8);
-        byte[] echoBytes = ("!" + received).getBytes(StandardCharsets.UTF_8);
-        asyncOut.writeBuffer(new ByteArrayBuffer(echoBytes));
+        int length = (int) len;
+        ByteArrayOutputStream echo = new ByteArrayOutputStream(length + 1);
+        for (int i = 0; i < length; i++) {
+            byte b = data[off + i];
+            if (atLineStart) {
+                echo.write('!');
+                atLineStart = false;
+            }
+            echo.write(b);
+            if (b == '\n') {
+                atLineStart = true;
+            }
+        }
+        enqueueEcho(new ByteArrayBuffer(echo.toByteArray()));
 
         // Replenish the local window so the peer keeps sending; mirrors what every other channel implementation
         // (e.g. ChannelSession) does once it has consumed the bytes handed to it.
         LocalWindow localWindow = getLocalWindow();
         localWindow.release(len);
+    }
+
+    private void enqueueEcho(ByteArrayBuffer buffer) throws IOException {
+        synchronized (pendingEchoes) {
+            if (echoWriteInProgress) {
+                pendingEchoes.add(buffer);
+                return;
+            }
+            echoWriteInProgress = true;
+        }
+        writeNextEcho(buffer);
+    }
+
+    private void writeNextEcho(ByteArrayBuffer buffer) throws IOException {
+        IoWriteFuture future = asyncOut.writeBuffer(buffer);
+        future.addListener(f -> {
+            ByteArrayBuffer next;
+            synchronized (pendingEchoes) {
+                next = pendingEchoes.poll();
+                if (next == null) {
+                    echoWriteInProgress = false;
+                }
+            }
+            if (next != null) {
+                try {
+                    writeNextEcho(next);
+                } catch (IOException e) {
+                    // Channel is most likely closing/closed; nothing sensible to do with a queued echo at this point.
+                }
+            }
+        });
     }
 
     @Override

@@ -69,9 +69,19 @@ complexity of a real TCP relay.
   (host-to-connect, port-to-connect, originator IP, originator port) to keep the buffer
   well-formed, and log the requested target/originator for visibility.
 - Must NOT open an outbound connection to the requested target host/port.
-- On receiving channel data, must echo the received chunk back to the client over the same
-  channel with a literal `!` prepended, sent via an outbound `direct-tcpip` data stream
+- On receiving channel data, must echo it back to the client over the same channel with a
+  literal `!` prepended to the start of each line (delimited by `\n`; a leading `\r` in a
+  `\r\n` terminator is left untouched), sent via an outbound `direct-tcpip` data stream
   (`ChannelAsyncOutputStream`) that is flow-controlled against the channel's remote window.
+  The `!` marker is inserted once per logical line, not once per received chunk: a single line
+  may span multiple `doWriteData` calls (the SSH transport chunks data at packet-size/window
+  boundaries with no regard for line content), so line-start state is tracked across calls.
+- Must serialize its echo writes: `ChannelAsyncOutputStream.writeBuffer` forbids overlapping
+  writes (it throws `WritePendingException` if called again before the previous write's future
+  completes), and `doWriteData` can be invoked again before a large echo (e.g. a multi-megabyte
+  line split across many chunks) finishes writing. Pending echoes are queued and written out
+  one at a time, advancing only once the previous write's future completes, preserving both the
+  write-serialization contract and received-data ordering.
 - Must replenish the local flow-control window after consuming received data, so the peer
   continues sending.
 - Must explicitly reject SSH extended data (`doWriteExtendedData` throws
@@ -132,6 +142,12 @@ literal `!` and is printed to the captured output. To avoid a race where the con
 loop could close the channel before a pending echo arrives, the test only sends the next line
 (and only sends `exit`) after the previous line's echo has actually appeared in the captured
 output, polling with a bounded timeout rather than assuming fixed timing.
+
+It also has a second test, `serverEchoesTenIncreasinglyHugeLines`, that sends 10 deterministic
+lines of increasing size (1MB, 2MB, ..., 10MB, decimal megabytes) over the same round trip and
+checks that each comes back with exactly one `!` prefix, even though a huge line is split across
+many `SSH_MSG_CHANNEL_DATA` chunks in transit. This test is what originally caught the
+`WritePendingException` bug described in section 3.3 (echo writes not being serialized).
 
 Run the packaged demo:
 
