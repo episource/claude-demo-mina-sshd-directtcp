@@ -6,7 +6,13 @@
 - Maven 3
 - Junit 5
 
-## Conventions
+## Claude Conventions
+- Read docs/requirements.md first
+- Start with making a plan first and then ask for confirmation before continuing.
+- The plan should include a summary of changes that would be needed to update docs/requirements.md
+- Make sure docs/requirements.md is aligned with the project after every modification
+
+## Code Conventions
 - No Lombok - write explicit constructors and accessors
 - Package executable application into fat jar
 - Prefer maven-assembly-plugin over maven-shade-plugin
@@ -27,3 +33,4 @@
 - Do not generate code that targets Java 22+
 - Do not create git commits
 - Do not perform any git commands writing to the git database. Only read!
+- Do not write, delete or edit any files without a user confirmed plan!
