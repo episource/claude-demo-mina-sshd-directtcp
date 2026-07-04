@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -57,7 +58,7 @@ public final class App {
 
             try (SshClient client = SshClient.setUpDefaultClient()) {
                 client.start();
-                runClient(client, server.getPort(), clientKeyPair);
+                runClient(client, server.getPort(), clientKeyPair, System.in, System.out);
                 client.stop();
             }
         }
@@ -71,14 +72,14 @@ public final class App {
         }
     }
 
-    private static void runClient(SshClient client, int port, KeyPair clientKeyPair) throws IOException {
-        System.out.println("Connecting SSH client to 127.0.0.1:" + port + " ...");
+    static void runClient(SshClient client, int port, KeyPair clientKeyPair, InputStream in, PrintStream out) throws IOException {
+        out.println("Connecting SSH client to 127.0.0.1:" + port + " ...");
         try (ClientSession session = client.connect(USERNAME, "127.0.0.1", port)
                 .verify(TIMEOUT)
                 .getSession()) {
             session.addPublicKeyIdentity(clientKeyPair);
             session.auth().verify(TIMEOUT);
-            System.out.println("Client authenticated.");
+            out.println("Client authenticated.");
 
             // These addresses are never used to open a real socket on either end: the server captures the data
             // itself instead of forwarding it to "targetHost:targetPort", and the client never binds a local port
@@ -88,18 +89,18 @@ public final class App {
 
             try (ChannelDirectTcpip channel = session.createDirectTcpipChannel(localAddress, targetAddress)) {
                 channel.open().verify(TIMEOUT);
-                System.out.println("direct-tcpip channel open.");
-                System.out.println("Type text and press Enter to send it to the server; type 'exit' to quit.");
+                out.println("direct-tcpip channel open.");
+                out.println("Type text and press Enter to send it to the server; type 'exit' to quit.");
 
                 // ChannelDirectTcpip.doWriteData() always feeds inbound bytes into its piped stream, ignoring
                 // ClientChannel.setOut(); reading channel.getInvertedOut() is the only way to receive them. Run
                 // that on a background thread since the main thread blocks reading console input for the other
                 // direction of the channel.
-                Thread responseReader = new Thread(() -> printChannelResponses(channel), "response-reader");
+                Thread responseReader = new Thread(() -> printChannelResponses(channel, out), "response-reader");
                 responseReader.setDaemon(true);
                 responseReader.start();
 
-                pumpConsoleToChannel(channel);
+                pumpConsoleToChannel(channel, in);
             }
         }
     }
@@ -108,13 +109,13 @@ public final class App {
      * Reads whatever the server echoes back over the channel and prints it to the console, until the channel is
      * closed.
      */
-    private static void printChannelResponses(ChannelDirectTcpip channel) {
+    private static void printChannelResponses(ChannelDirectTcpip channel, PrintStream out) {
         try (InputStream fromServer = channel.getInvertedOut()) {
             byte[] buffer = new byte[1024];
             int read;
             while ((read = fromServer.read(buffer)) != -1) {
-                System.out.write(buffer, 0, read);
-                System.out.flush();
+                out.write(buffer, 0, read);
+                out.flush();
             }
         } catch (IOException e) {
             // Expected once the channel is closed while this thread is blocked in read().
@@ -125,9 +126,9 @@ public final class App {
      * Reads lines from the console and writes them straight into the channel's outbound stream - no local socket,
      * server socket, or port forwarding is involved anywhere in this path.
      */
-    private static void pumpConsoleToChannel(ChannelDirectTcpip channel) throws IOException {
+    private static void pumpConsoleToChannel(ChannelDirectTcpip channel, InputStream in) throws IOException {
         OutputStream toServer = channel.getInvertedIn();
-        try (BufferedReader console = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
+        try (BufferedReader console = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
             String line;
             while ((line = console.readLine()) != null) {
                 if ("exit".equalsIgnoreCase(line.trim())) {

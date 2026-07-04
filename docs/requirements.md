@@ -56,6 +56,10 @@ complexity of a real TCP relay.
   has no effect for this channel type).
 - Must authenticate and open the channel within a bounded timeout (currently 10 seconds).
 - Must release client and session resources deterministically (try-with-resources) on exit.
+- The client-facing logic (`App.runClient`, package-private) must take its console input and
+  output as an `InputStream`/`PrintStream` parameter pair rather than hardcoding
+  `System.in`/`System.out`, so it can be driven by an automated test; `App.main` supplies
+  `System.in`/`System.out` and remains the only console-attached entry point.
 
 ### 3.3 Echo channel (`EchoServerChannel`, `EchoChannelFactory`)
 - Must handle channel type `"direct-tcpip"` on the server side.
@@ -118,6 +122,14 @@ verifies the public-key authenticator behaves as required:
 - the hardcoded demo key pair (`App.loadClientKeyPair()`) is accepted;
 - an unrelated, freshly generated RSA key pair is rejected;
 - password authentication is rejected (no `PasswordAuthenticator` is registered at all).
+
+`DirectTcpipEchoTest` (JUnit 5) starts a real `DemoServer` on an ephemeral port and drives
+`App.runClient` through a piped `InputStream`/captured `PrintStream` (no real console) to prove
+the echo round trip: each line sent over the `direct-tcpip` channel comes back prefixed with a
+literal `!` and is printed to the captured output. To avoid a race where the console-reading
+loop could close the channel before a pending echo arrives, the test only sends the next line
+(and only sends `exit`) after the previous line's echo has actually appeared in the captured
+output, polling with a bounded timeout rather than assuming fixed timing.
 
 Run the packaged demo:
 
