@@ -41,8 +41,8 @@ data-flow mechanics without the added complexity of a real TCP relay.
 
 ### 3.2 Embedded SSH client (`App`)
 - Must connect to the embedded server on `127.0.0.1` at the server's listening port.
-- Must authenticate using an RSA 4096 public-key identity, parsed at startup from a
-  hardcoded PEM-encoded private key constant (`App.PRIVATE_KEY_PEM`).
+- Must authenticate using an RSA 4096 public-key identity, loaded at startup from a
+  bundled PEM resource file (`src/main/resources/demo-client-key.pem`).
 - Must open a `direct-tcpip` channel (`ChannelDirectTcpip`) using placeholder local and
   target addresses; these addresses are never used to open a real socket on either end.
 - Must read lines from standard input and write each line (UTF-8 encoded, newline
@@ -81,7 +81,7 @@ data-flow mechanics without the added complexity of a real TCP relay.
 |---|---|---|---|
 | Server port | `2222` | `App.SERVER_PORT` | Hardcoded |
 | Username | `demo` | `App.USERNAME` | Hardcoded |
-| Client key | RSA 4096 key pair | `App.PRIVATE_KEY_PEM` | Hardcoded PKCS#8 PEM constant; parsed once in `App.main` and shared between the client identity and the server's accepted-key set |
+| Client key | RSA 4096 key pair | `src/main/resources/demo-client-key.pem` | Hardcoded PKCS#8 PEM resource file, bundled into the jar; loaded once in `App.main` and shared between the client identity and the server's accepted-key set |
 | Connect/auth timeout | 10 seconds | `App.TIMEOUT` | Hardcoded |
 | Host key file | `demo-hostkey.ser` | `App.main` | Generated on first run if absent; gitignored |
 | Log level | `warn` | `simplelogger.properties` | SLF4J simple logger default |
