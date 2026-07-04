@@ -3,11 +3,13 @@ package com.example.sshddemo.server;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.security.PublicKey;
 import java.util.Arrays;
+import java.util.Collections;
 
 import org.apache.sshd.common.keyprovider.KeyPairProvider;
 import org.apache.sshd.server.SshServer;
-import org.apache.sshd.server.auth.password.AcceptAllPasswordAuthenticator;
+import org.apache.sshd.server.auth.pubkey.KeySetPublickeyAuthenticator;
 import org.apache.sshd.server.channel.ChannelSessionFactory;
 import org.apache.sshd.server.forward.RejectAllForwardingFilter;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
@@ -25,15 +27,17 @@ public final class DemoServer implements AutoCloseable {
         this.sshServer = sshServer;
     }
 
-    public static DemoServer start(int port, Path hostKeyPath, PrintStream captureSink) throws IOException {
+    public static DemoServer start(int port, Path hostKeyPath, PrintStream captureSink, PublicKey authorizedClientKey)
+            throws IOException {
         SshServer server = SshServer.setUpDefaultServer();
         server.setPort(port);
 
         KeyPairProvider hostKeyProvider = new SimpleGeneratorHostKeyProvider(hostKeyPath);
         server.setKeyPairProvider(hostKeyProvider);
 
-        // Demo only: accept any password. Do not use in production.
-        server.setPasswordAuthenticator(AcceptAllPasswordAuthenticator.INSTANCE);
+        // Demo only: accepts exactly one hardcoded client key. Do not use in production.
+        server.setPublickeyAuthenticator(
+                new KeySetPublickeyAuthenticator("demo-client-key", Collections.singleton(authorizedClientKey)));
 
         // Explicit-forwarding ("remote port forwarding") is unrelated to what this demo does and is disabled;
         // only a "session" channel (unused here, kept for protocol completeness) and our custom "direct-tcpip"

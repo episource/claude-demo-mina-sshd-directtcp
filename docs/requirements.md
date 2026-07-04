@@ -29,8 +29,10 @@ data-flow mechanics without the added complexity of a real TCP relay.
 - Must listen on a configurable TCP port (currently hardcoded to `2222` in `App.java`).
 - Must generate or load a persistent host key from a given file path
   (`SimpleGeneratorHostKeyProvider`, default path `demo-hostkey.ser`).
-- Must accept authentication from any password (`AcceptAllPasswordAuthenticator`) — demo
-  only, not for production use.
+- Must accept authentication only from one specific RSA 4096 public key
+  (`KeySetPublickeyAuthenticator`), configured from a hardcoded demo private key constant in
+  `App` — demo only; a real deployment would never embed a private key in source or run
+  both peers in one JVM.
 - Must reject standard SSH forwarding requests (`RejectAllForwardingFilter`), since real
   forwarding is out of scope for this demo.
 - Must register a standard session channel factory (`ChannelSessionFactory`) for protocol
@@ -39,7 +41,8 @@ data-flow mechanics without the added complexity of a real TCP relay.
 
 ### 3.2 Embedded SSH client (`App`)
 - Must connect to the embedded server on `127.0.0.1` at the server's listening port.
-- Must authenticate using a password identity (currently hardcoded `demo`/`demo`).
+- Must authenticate using an RSA 4096 public-key identity, parsed at startup from a
+  hardcoded PEM-encoded private key constant (`App.PRIVATE_KEY_PEM`).
 - Must open a `direct-tcpip` channel (`ChannelDirectTcpip`) using placeholder local and
   target addresses; these addresses are never used to open a real socket on either end.
 - Must read lines from standard input and write each line (UTF-8 encoded, newline
@@ -77,8 +80,8 @@ data-flow mechanics without the added complexity of a real TCP relay.
 | Setting | Current value | Location | Notes |
 |---|---|---|---|
 | Server port | `2222` | `App.SERVER_PORT` | Hardcoded |
-| Username | `demo` | `App.USERNAME` | Hardcoded, accepted by `AcceptAllPasswordAuthenticator` |
-| Password | `demo` | `App.PASSWORD` | Hardcoded; any password is actually accepted |
+| Username | `demo` | `App.USERNAME` | Hardcoded |
+| Client key | RSA 4096 key pair | `App.PRIVATE_KEY_PEM` | Hardcoded PKCS#8 PEM constant; parsed once in `App.main` and shared between the client identity and the server's accepted-key set |
 | Connect/auth timeout | 10 seconds | `App.TIMEOUT` | Hardcoded |
 | Host key file | `demo-hostkey.ser` | `App.main` | Generated on first run if absent; gitignored |
 | Log level | `warn` | `simplelogger.properties` | SLF4J simple logger default |
@@ -88,7 +91,8 @@ These values are demo-only and are not intended for production deployment.
 ## 6. Out of Scope / Explicit Exclusions
 
 - No real TCP relaying/forwarding occurs on either the client or server side.
-- No production-grade authentication (any password is accepted).
+- No production-grade authentication (a single hardcoded demo key is accepted; no real key
+  store, revocation, or per-user key management).
 - No support for multiple concurrent client sessions.
 - No persistence beyond the generated host key file.
 - No automated test suite currently exists in this repository.
