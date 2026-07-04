@@ -7,12 +7,14 @@ import java.time.Duration;
 
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.SshException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.example.sshddemo.server.DemoServer;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -23,6 +25,7 @@ class PublicKeyAuthenticationTest {
 
     private static final String USERNAME = "demo";
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
+    private static final String AUTH_REJECTED_MESSAGE = "No more authentication methods available";
 
     @Test
     void authorizedKeyIsAccepted(@TempDir Path tempDir) throws Exception {
@@ -52,7 +55,8 @@ class PublicKeyAuthenticationTest {
 
             try (ClientSession session = connect(client, server.getPort())) {
                 session.addPublicKeyIdentity(otherKeyPair);
-                assertThrows(Exception.class, () -> session.auth().verify(TIMEOUT));
+                SshException exception = assertThrows(SshException.class, () -> session.auth().verify(TIMEOUT));
+                assertEquals(AUTH_REJECTED_MESSAGE, exception.getMessage());
             }
 
             client.stop();
@@ -69,7 +73,8 @@ class PublicKeyAuthenticationTest {
 
             try (ClientSession session = connect(client, server.getPort())) {
                 session.addPasswordIdentity(USERNAME);
-                assertThrows(Exception.class, () -> session.auth().verify(TIMEOUT));
+                SshException exception = assertThrows(SshException.class, () -> session.auth().verify(TIMEOUT));
+                assertEquals(AUTH_REJECTED_MESSAGE, exception.getMessage());
             }
 
             client.stop();
