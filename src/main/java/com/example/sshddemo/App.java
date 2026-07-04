@@ -27,11 +27,12 @@ import com.example.sshddemo.server.DemoServer;
 /**
  * Self-contained demo: starts an embedded Mina SSHD server and an Mina SSHD client in the same JVM, has the client
  * connect and open a {@code direct-tcpip} channel, then streams console input over that channel to the server, which
- * prints whatever it receives.
+ * echoes each chunk back with a literal {@code !} prepended; the client prints whatever it gets back to its console.
  *
  * <p>Neither side touches an extra network socket for the tunneled data: the client feeds bytes into the channel via
- * {@link ChannelDirectTcpip#getInvertedIn()} (no local port is bound) and the server writes received bytes directly
- * to {@link System#out} from within its custom channel implementation (no outbound connection is made).
+ * {@link ChannelDirectTcpip#getInvertedIn()} and reads echoed responses via {@link ChannelDirectTcpip#getInvertedOut()}
+ * (no local port is bound), and the server echoes bytes back over the same channel from within its custom channel
+ * implementation (no outbound connection is made on either side).
  */
 public final class App {
 
@@ -90,8 +91,33 @@ public final class App {
                 System.out.println("direct-tcpip channel open.");
                 System.out.println("Type text and press Enter to send it to the server; type 'exit' to quit.");
 
+                // ChannelDirectTcpip.doWriteData() always feeds inbound bytes into its piped stream, ignoring
+                // ClientChannel.setOut(); reading channel.getInvertedOut() is the only way to receive them. Run
+                // that on a background thread since the main thread blocks reading console input for the other
+                // direction of the channel.
+                Thread responseReader = new Thread(() -> printChannelResponses(channel), "response-reader");
+                responseReader.setDaemon(true);
+                responseReader.start();
+
                 pumpConsoleToChannel(channel);
             }
+        }
+    }
+
+    /**
+     * Reads whatever the server echoes back over the channel and prints it to the console, until the channel is
+     * closed.
+     */
+    private static void printChannelResponses(ChannelDirectTcpip channel) {
+        try (InputStream fromServer = channel.getInvertedOut()) {
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = fromServer.read(buffer)) != -1) {
+                System.out.write(buffer, 0, read);
+                System.out.flush();
+            }
+        } catch (IOException e) {
+            // Expected once the channel is closed while this thread is blocked in read().
         }
     }
 

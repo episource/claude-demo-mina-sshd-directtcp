@@ -5,9 +5,11 @@
 This project is an educational, self-contained demonstration of the SSH `direct-tcpip`
 channel type using [Apache Mina SSHD](https://mina.apache.org/sshd-project/). It runs an
 embedded SSH server and an embedded SSH client in a single JVM, has the client open a
-`direct-tcpip` channel to the server, and streams console input over that channel. It is
-intended for developers who want to see the `direct-tcpip` channel-open handshake and
-data-flow mechanics without the added complexity of a real TCP relay.
+`direct-tcpip` channel to the server, and streams console input over that channel. The server
+echoes each received chunk back over the same channel with a literal `!` prepended, and the
+client prints whatever it gets back to its console. It is intended for developers who want to
+see the `direct-tcpip` channel-open handshake and data-flow mechanics without the added
+complexity of a real TCP relay.
 
 ## 2. Goals / Non-Goals
 
@@ -36,7 +38,7 @@ data-flow mechanics without the added complexity of a real TCP relay.
 - Must reject standard SSH forwarding requests (`RejectAllForwardingFilter`), since real
   forwarding is out of scope for this demo.
 - Must register a standard session channel factory (`ChannelSessionFactory`) for protocol
-  completeness, plus a custom `direct-tcpip` channel factory (`ConsoleCaptureChannelFactory`).
+  completeness, plus a custom `direct-tcpip` channel factory (`EchoChannelFactory`).
 - Must be closeable (`AutoCloseable`) and stop the underlying `SshServer` on close.
 
 ### 3.2 Embedded SSH client (`App`)
@@ -48,17 +50,22 @@ data-flow mechanics without the added complexity of a real TCP relay.
 - Must read lines from standard input and write each line (UTF-8 encoded, newline
   terminated) into the channel's outbound stream until the user enters `exit`
   (case-insensitive).
+- Must run a background thread that reads `ChannelDirectTcpip.getInvertedOut()` and prints
+  each echoed response from the server to the console as it arrives (`ChannelDirectTcpip`
+  feeds inbound channel data into that piped stream unconditionally, so `ClientChannel.setOut`
+  has no effect for this channel type).
 - Must authenticate and open the channel within a bounded timeout (currently 10 seconds).
 - Must release client and session resources deterministically (try-with-resources) on exit.
 
-### 3.3 Console-capture channel (`ConsoleCaptureServerChannel`, `ConsoleCaptureChannelFactory`)
+### 3.3 Echo channel (`EchoServerChannel`, `EchoChannelFactory`)
 - Must handle channel type `"direct-tcpip"` on the server side.
 - On channel open, must parse and discard the standard direct-tcpip payload fields
   (host-to-connect, port-to-connect, originator IP, originator port) to keep the buffer
   well-formed, and log the requested target/originator for visibility.
 - Must NOT open an outbound connection to the requested target host/port.
-- On receiving channel data, must write the bytes directly to a configured `PrintStream`
-  sink (stdout in this demo) and flush immediately.
+- On receiving channel data, must echo the received chunk back to the client over the same
+  channel with a literal `!` prepended, sent via an outbound `direct-tcpip` data stream
+  (`ChannelAsyncOutputStream`) that is flow-controlled against the channel's remote window.
 - Must replenish the local flow-control window after consuming received data, so the peer
   continues sending.
 - Must explicitly reject SSH extended data (`doWriteExtendedData` throws

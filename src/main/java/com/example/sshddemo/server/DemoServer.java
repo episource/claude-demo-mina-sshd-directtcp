@@ -16,7 +16,7 @@ import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 
 /**
  * Sets up and starts an embedded {@link SshServer} whose only meaningful channel type is {@code direct-tcpip},
- * handled by {@link ConsoleCaptureServerChannel} - i.e. captured locally instead of being forwarded to a real
+ * handled by {@link EchoServerChannel} - i.e. echoed back to the client instead of being forwarded to a real
  * target host/port.
  */
 public final class DemoServer implements AutoCloseable {
@@ -41,11 +41,11 @@ public final class DemoServer implements AutoCloseable {
 
         // Explicit-forwarding ("remote port forwarding") is unrelated to what this demo does and is disabled;
         // only a "session" channel (unused here, kept for protocol completeness) and our custom "direct-tcpip"
-        // capture channel are registered.
+        // echo channel are registered.
         server.setForwardingFilter(RejectAllForwardingFilter.INSTANCE);
         server.setChannelFactories(Arrays.asList(
                 ChannelSessionFactory.INSTANCE,
-                new ConsoleCaptureChannelFactory(captureSink)));
+                new EchoChannelFactory(captureSink)));
 
         server.start();
         return new DemoServer(server);

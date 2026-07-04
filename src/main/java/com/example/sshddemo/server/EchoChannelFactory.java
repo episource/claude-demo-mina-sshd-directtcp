@@ -9,17 +9,17 @@ import org.apache.sshd.common.session.Session;
 
 /**
  * Server-side factory for the SSH {@code direct-tcpip} channel type. Instead of the standard behaviour (opening a
- * socket to the host/port requested by the client and relaying bytes to/from it), every channel produced here hands
- * received data straight to a local {@link PrintStream}. No target socket is ever opened.
+ * socket to the host/port requested by the client and relaying bytes to/from it), every channel produced here echoes
+ * received data straight back to the client with a {@code !} prepended. No target socket is ever opened.
  */
-public final class ConsoleCaptureChannelFactory implements ChannelFactory {
+public final class EchoChannelFactory implements ChannelFactory {
 
     /** The channel type name used in the SSH {@code SSH_MSG_CHANNEL_OPEN} request. */
     public static final String DIRECT_TCPIP_CHANNEL_TYPE = "direct-tcpip";
 
     private final PrintStream sink;
 
-    public ConsoleCaptureChannelFactory(PrintStream sink) {
+    public EchoChannelFactory(PrintStream sink) {
         this.sink = sink;
     }
 
@@ -30,6 +30,6 @@ public final class ConsoleCaptureChannelFactory implements ChannelFactory {
 
     @Override
     public Channel createChannel(Session session) throws IOException {
-        return new ConsoleCaptureServerChannel(sink);
+        return new EchoServerChannel(sink);
     }
 }
