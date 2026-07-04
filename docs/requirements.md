@@ -48,8 +48,10 @@ complexity of a real TCP relay.
 - Must open a `direct-tcpip` channel (`ChannelDirectTcpip`) using placeholder local and
   target addresses; these addresses are never used to open a real socket on either end.
 - Must read lines from standard input and write each line (UTF-8 encoded, newline
-  terminated) into the channel's outbound stream until the user enters `exit`
-  (case-insensitive).
+  terminated) into the channel's outbound stream.
+- Must terminate the console-input loop (`pumpConsoleToChannel`) and close the
+  `direct-tcpip` channel when the user enters `exit` (case-insensitive, leading/trailing
+  whitespace ignored), without sending that line to the server.
 - Must run a background thread that reads `ChannelDirectTcpip.getInvertedOut()` and prints
   each echoed response from the server to the console as it arrives (`ChannelDirectTcpip`
   feeds inbound channel data into that piped stream unconditionally, so `ClientChannel.setOut`
