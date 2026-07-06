@@ -11,6 +11,10 @@ client prints whatever it gets back to its console. It is intended for developer
 see the `direct-tcpip` channel-open handshake and data-flow mechanics without the added
 complexity of a real TCP relay.
 
+A top-level `README.md` provides a short project summary, a note that this is a test project
+for exploring Claude Code usage, and quick-start build/run instructions; this document remains
+the authoritative requirements reference.
+
 ## 2. Goals / Non-Goals
 
 **Goals**
